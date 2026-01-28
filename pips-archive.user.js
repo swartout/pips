@@ -27,13 +27,19 @@
       .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  // --- Hide editorial content (date/authorship) when viewing archive ---
+  // --- Hide editorial content (date/authorship) — always, since our picker replaces it ---
 
-  if (localStorage.getItem(STORAGE_KEY)) {
-    const s = document.createElement('style');
-    s.textContent = '#portal-editorial-content{display:none!important}';
-    (document.head || document.documentElement).appendChild(s);
+  const hideCSS = '#portal-editorial-content{display:none!important}';
+  function injectHideStyle() {
+    if (!document.getElementById('pips-hide-editorial')) {
+      const s = document.createElement('style');
+      s.id = 'pips-hide-editorial';
+      s.textContent = hideCSS;
+      (document.head || document.documentElement).appendChild(s);
+    }
   }
+  injectHideStyle();
+  document.addEventListener('DOMContentLoaded', injectHideStyle);
 
   // --- Intercept fetch to rewrite the Pips API date ---
 
