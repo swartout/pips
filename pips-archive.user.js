@@ -27,6 +27,14 @@
       .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
+  // --- Hide editorial content (date/authorship) when viewing archive ---
+
+  if (localStorage.getItem(STORAGE_KEY)) {
+    const s = document.createElement('style');
+    s.textContent = '#portal-editorial-content{display:none!important}';
+    (document.head || document.documentElement).appendChild(s);
+  }
+
   // --- Intercept fetch to rewrite the Pips API date ---
 
   const originalFetch = window.fetch;
@@ -86,14 +94,6 @@
     (diffRow || playBtn).parentNode.insertBefore(picker, diffRow || playBtn);
   }
 
-  // --- Hide editorial content (date/authorship) when viewing archive ---
-
-  function hideEditorial() {
-    if (!localStorage.getItem(STORAGE_KEY)) return;
-    const el = document.getElementById('portal-editorial-content');
-    if (el) el.style.display = 'none';
-  }
-
   // --- Observe DOM ---
 
   function init() {
@@ -105,8 +105,7 @@
       return;
     }
     tryInsertPicker();
-    hideEditorial();
-    new MutationObserver(() => { tryInsertPicker(); hideEditorial(); })
+    new MutationObserver(() => { tryInsertPicker(); })
       .observe(root.parentElement, { childList: true, subtree: true });
   }
 
