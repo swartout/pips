@@ -27,19 +27,21 @@
       .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  // --- Hide editorial content (date/authorship) — always, since our picker replaces it ---
+  // --- Hide editorial content (date/authorship rendered inside game root) ---
 
-  const hideCSS = '#portal-editorial-content{display:none!important}';
-  function injectHideStyle() {
-    if (!document.getElementById('pips-hide-editorial')) {
-      const s = document.createElement('style');
-      s.id = 'pips-hide-editorial';
-      s.textContent = hideCSS;
-      (document.head || document.documentElement).appendChild(s);
+  function hideEditorial(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (node.textContent.includes('Edited by')) {
+        // Walk up to find the container that holds the whole authorship block
+        let el = node.parentElement;
+        while (el && el !== root && !el.textContent.includes('Puzzle by')) el = el.parentElement;
+        if (el && el !== root) el.style.display = 'none';
+        return;
+      }
     }
   }
-  injectHideStyle();
-  document.addEventListener('DOMContentLoaded', injectHideStyle);
 
   // --- Intercept fetch to rewrite the Pips API date ---
 
@@ -111,7 +113,8 @@
       return;
     }
     tryInsertPicker();
-    new MutationObserver(() => { tryInsertPicker(); })
+    hideEditorial(root);
+    new MutationObserver(() => { tryInsertPicker(); hideEditorial(root); })
       .observe(root.parentElement, { childList: true, subtree: true });
   }
 
