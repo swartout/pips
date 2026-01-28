@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYT Pips Archive
 // @namespace    https://github.com/swartout/pips
-// @version      4.0
+// @version      4.1
 // @description  Play any previous day's NYT Pips puzzle by selecting a date
 // @match        https://www.nytimes.com/games/pips*
 // @run-at       document-start
