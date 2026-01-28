@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYT Pips Archive
 // @namespace    https://github.com/swartout/pips
-// @version      2.0
+// @version      3.0
 // @description  Play any previous day's NYT Pips puzzle by selecting a date
 // @match        https://www.nytimes.com/games/pips*
 // @run-at       document-start
@@ -42,9 +42,14 @@
       String(d.getDate()).padStart(2, '0');
   }
 
-  function formatDate(dateStr) {
+  function formatDateShort(dateStr) {
     const d = new Date(dateStr + 'T12:00:00');
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function formatDateLong(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   }
 
   function shiftDate(dateStr, days) {
@@ -55,14 +60,45 @@
       String(d.getDate()).padStart(2, '0');
   }
 
-  function setDate(dateStr) {
+  function clampDate(dateStr) {
     const today = getToday();
-    if (dateStr && dateStr !== today) {
-      localStorage.setItem(STORAGE_KEY, dateStr);
-    } else {
+    if (dateStr < LAUNCH_DATE) return LAUNCH_DATE;
+    if (dateStr > today) return today;
+    return dateStr;
+  }
+
+  // --- Smooth date transition: fade out, prefetch, reload ---
+
+  function changeDate(dateStr) {
+    dateStr = clampDate(dateStr);
+    const today = getToday();
+    const current = localStorage.getItem(STORAGE_KEY) || today;
+    if (dateStr === current) return;
+
+    if (dateStr === today) {
       localStorage.removeItem(STORAGE_KEY);
+    } else {
+      localStorage.setItem(STORAGE_KEY, dateStr);
     }
-    location.reload();
+
+    // Fade out the game area, prefetch new data, then reload
+    const gameWrapper = document.getElementById('js-hook-game-wrapper');
+    const fadeTarget = gameWrapper || document.getElementById('pz-game-root');
+
+    // Start prefetch immediately
+    const prefetch = originalFetch.call(window, `/svc/pips/v1/${dateStr}.json`)
+      .catch(() => {}); // ignore errors, reload will retry
+
+    if (fadeTarget) {
+      fadeTarget.style.transition = 'opacity 0.2s ease-out';
+      fadeTarget.style.opacity = '0';
+    }
+
+    // Wait for both fade and prefetch, then reload
+    Promise.all([
+      prefetch,
+      new Promise(r => setTimeout(r, 200))
+    ]).then(() => location.reload());
   }
 
   // --- Inject styles once ---
@@ -74,9 +110,8 @@
     style.textContent = `
       #${PICKER_ID} {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: center;
-        gap: 6px;
         padding: 10px 0 2px;
         font-family: "nyt-franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         font-size: 14px;
@@ -84,13 +119,19 @@
         user-select: none;
         -webkit-user-select: none;
       }
+      #${PICKER_ID} .archive-nav-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+      }
       #${PICKER_ID} .archive-arrow {
         background: none;
         border: none;
         font-size: 18px;
         cursor: pointer;
         color: #333;
-        padding: 4px 8px;
+        padding: 4px 10px;
         line-height: 1;
         border-radius: 4px;
         -webkit-tap-highlight-color: transparent;
@@ -109,6 +150,7 @@
         letter-spacing: 0.01em;
         padding: 4px 10px;
         border-radius: 6px;
+        border-bottom: 1.5px dashed rgba(0,0,0,0.3);
         -webkit-tap-highlight-color: transparent;
       }
       #${PICKER_ID} .archive-date-label:active {
@@ -130,10 +172,11 @@
         font-family: inherit;
         font-size: 13px;
         font-weight: 500;
-        color: #333;
+        color: #555;
         text-decoration: underline;
         cursor: pointer;
         padding: 4px 6px;
+        margin-top: 2px;
         -webkit-tap-highlight-color: transparent;
       }
     `;
@@ -150,18 +193,20 @@
     const container = document.createElement('div');
     container.id = PICKER_ID;
 
-    // Previous day arrow
+    // Nav row: ‹ date ›
+    const navRow = document.createElement('div');
+    navRow.className = 'archive-nav-row';
+
     const prevBtn = document.createElement('button');
     prevBtn.className = 'archive-arrow';
     prevBtn.textContent = '\u2039';
     prevBtn.setAttribute('aria-label', 'Previous day');
     prevBtn.disabled = current <= LAUNCH_DATE;
-    prevBtn.addEventListener('click', () => setDate(shiftDate(current, -1)));
+    prevBtn.addEventListener('click', () => changeDate(shiftDate(current, -1)));
 
-    // Date label with hidden native date input
     const dateLabel = document.createElement('span');
     dateLabel.className = 'archive-date-label';
-    dateLabel.textContent = formatDate(current);
+    dateLabel.textContent = formatDateShort(current);
 
     const dateInput = document.createElement('input');
     dateInput.type = 'date';
@@ -170,28 +215,28 @@
     dateInput.max = today;
     dateInput.value = current;
     dateInput.addEventListener('change', () => {
-      if (dateInput.value) setDate(dateInput.value);
+      if (dateInput.value) changeDate(dateInput.value);
     });
     dateLabel.appendChild(dateInput);
 
-    // Next day arrow
     const nextBtn = document.createElement('button');
     nextBtn.className = 'archive-arrow';
     nextBtn.textContent = '\u203A';
     nextBtn.setAttribute('aria-label', 'Next day');
     nextBtn.disabled = current >= today;
-    nextBtn.addEventListener('click', () => setDate(shiftDate(current, 1)));
+    nextBtn.addEventListener('click', () => changeDate(shiftDate(current, 1)));
 
-    container.appendChild(prevBtn);
-    container.appendChild(dateLabel);
-    container.appendChild(nextBtn);
+    navRow.appendChild(prevBtn);
+    navRow.appendChild(dateLabel);
+    navRow.appendChild(nextBtn);
+    container.appendChild(navRow);
 
-    // "Today" link when viewing archive
+    // "Today" link on its own line (only when viewing archive)
     if (isArchive) {
       const todayBtn = document.createElement('button');
       todayBtn.className = 'archive-today-btn';
       todayBtn.textContent = 'Today';
-      todayBtn.addEventListener('click', () => setDate(today));
+      todayBtn.addEventListener('click', () => changeDate(today));
       container.appendChild(todayBtn);
     }
 
@@ -201,14 +246,12 @@
   // --- Insert picker into the splash screen ---
 
   function tryInsertPicker() {
-    // Don't double-insert
     if (document.getElementById(PICKER_ID)) return;
 
     const gameRoot = document.getElementById('pz-game-root');
     if (!gameRoot) return;
 
-    // Look for the splash screen: find the "Play" button as an anchor point.
-    // The splash screen has a visible button with text "Play".
+    // Look for the splash screen "Play" button
     const buttons = gameRoot.querySelectorAll('button');
     let playButton = null;
     for (const btn of buttons) {
@@ -219,11 +262,7 @@
     }
     if (!playButton) return;
 
-    // Walk up from Play button to find the splash screen container,
-    // then look for the difficulty selector or the subtitle to insert after.
-    // Strategy: insert our picker as the first child of the game root's
-    // first child (the splash screen wrapper), right after any title/subtitle area.
-    // We look for the element that contains the difficulty tabs (Easy/Medium/Hard).
+    // Find the difficulty selector row (Easy / Medium / Hard)
     let difficultyRow = null;
     const allElements = gameRoot.querySelectorAll('*');
     for (const el of allElements) {
@@ -240,20 +279,40 @@
     const picker = buildPicker();
 
     if (difficultyRow) {
-      // Insert before the difficulty selector
       difficultyRow.parentNode.insertBefore(picker, difficultyRow);
     } else {
-      // Fallback: insert before the Play button's parent
       playButton.parentNode.insertBefore(picker, playButton);
     }
   }
 
-  // --- Observe DOM for splash screen appearing/disappearing ---
+  // --- Fix bottom editorial content (date/authorship) for archive ---
+
+  function fixEditorialContent() {
+    const selectedDate = localStorage.getItem(STORAGE_KEY);
+    if (!selectedDate) return; // only fix when viewing archive
+
+    const portal = document.getElementById('portal-editorial-content');
+    if (!portal || !portal.textContent.trim()) return;
+
+    // The editorial section shows today's date. Replace it with the archive date.
+    const archiveDateLong = formatDateLong(selectedDate);
+    const todayLong = formatDateLong(getToday());
+
+    // Walk all text nodes and replace the date
+    const walker = document.createTreeWalker(portal, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (node.textContent.includes(todayLong)) {
+        node.textContent = node.textContent.replace(todayLong, archiveDateLong);
+      }
+    }
+  }
+
+  // --- Observe DOM for splash screen and editorial content ---
 
   function startObserving() {
     const gameRoot = document.getElementById('pz-game-root');
     if (!gameRoot) {
-      // Wait for game root to exist
       const bodyObserver = new MutationObserver(() => {
         if (document.getElementById('pz-game-root')) {
           bodyObserver.disconnect();
@@ -264,14 +323,22 @@
       return;
     }
 
-    // Try immediately
     tryInsertPicker();
 
-    // Observe for changes (React re-renders, navigation between splash and game)
     const observer = new MutationObserver(() => {
       tryInsertPicker();
     });
     observer.observe(gameRoot, { childList: true, subtree: true });
+
+    // Also watch editorial content portal for changes
+    const editorialPortal = document.getElementById('portal-editorial-content');
+    if (editorialPortal) {
+      fixEditorialContent();
+      const editorialObserver = new MutationObserver(() => {
+        fixEditorialContent();
+      });
+      editorialObserver.observe(editorialPortal, { childList: true, subtree: true });
+    }
   }
 
   if (document.readyState === 'loading') {
