@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYT Pips Archive
 // @namespace    https://github.com/swartout/pips
-// @version      4.2
+// @version      4.3
 // @description  Play any previous day's NYT Pips puzzle by selecting a date
 // @match        https://www.nytimes.com/games/pips*
 // @run-at       document-start
@@ -74,10 +74,9 @@
     input.value = current;
     input.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;-webkit-appearance:none';
     input.addEventListener('change', () => {
-      if (!input.value) return;
-      const val = input.value;
-      if (val === getToday()) localStorage.removeItem(STORAGE_KEY);
-      else localStorage.setItem(STORAGE_KEY, val);
+      if (!input.value || input.value === current) return;
+      if (input.value === getToday()) localStorage.removeItem(STORAGE_KEY);
+      else localStorage.setItem(STORAGE_KEY, input.value);
       location.reload();
     });
 
