@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYT Pips Archive
 // @namespace    https://github.com/swartout/pips
-// @version      5.0
+// @version      5.1
 // @description  Play any previous day's NYT Pips puzzle
 // @match        https://www.nytimes.com/games/pips*
 // @run-at       document-start
@@ -74,6 +74,8 @@
     (tabs || play).parentNode.insertBefore(div, tabs || play);
   }
 
-  // Wait for game root, then observe
-  new MutationObserver(update).observe(document.documentElement, { childList: true, subtree: true });
+  // Wait for game root, then observe (debounce so React can finish rendering)
+  let _t;
+  new MutationObserver(() => { clearTimeout(_t); _t = setTimeout(update, 200); })
+    .observe(document.documentElement, { childList: true, subtree: true });
 })();
