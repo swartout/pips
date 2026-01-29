@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYT Pips Archive
 // @namespace    https://github.com/swartout/pips
-// @version      5.1
+// @version      5.2
 // @description  Play any previous day's NYT Pips puzzle
 // @match        https://www.nytimes.com/games/pips*
 // @run-at       document-start
@@ -67,15 +67,10 @@
     label.appendChild(input);
     div.appendChild(label);
 
-    // Insert before difficulty tabs or Play button
-    const tabs = [...root.querySelectorAll('*')].find(el =>
-      el.children.length >= 3 && ['Easy','Medium','Hard'].every(t => [...el.children].some(c => c.textContent.trim() === t))
-    );
-    (tabs || play).parentNode.insertBefore(div, tabs || play);
+    // Insert before game root (outside React's tree so re-renders don't remove it)
+    root.parentNode.insertBefore(div, root);
   }
 
-  // Wait for game root, then observe (debounce so React can finish rendering)
-  let _t;
-  new MutationObserver(() => { clearTimeout(_t); _t = setTimeout(update, 200); })
-    .observe(document.documentElement, { childList: true, subtree: true });
+  // Wait for game root, then observe
+  new MutationObserver(update).observe(document.documentElement, { childList: true, subtree: true });
 })();
