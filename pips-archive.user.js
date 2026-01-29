@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYT Pips Archive
 // @namespace    https://github.com/swartout/pips
-// @version      5.5
+// @version      6.0
 // @description  Play any previous day's NYT Pips puzzle
 // @match        https://www.nytimes.com/games/pips*
 // @run-at       document-start
@@ -19,7 +19,6 @@
     return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
   }
 
-  // Rewrite puzzle API requests to the selected date
   const _fetch = window.fetch;
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : input?.url || '';
@@ -31,16 +30,13 @@
     return _fetch.call(this, input, init);
   };
 
-  // Insert date picker on the splash screen, hide editorial info
   function update() {
     const root = document.getElementById('pz-game-root');
     if (!root) return;
 
-    // Hide date/authorship block
     const info = root.querySelector('p[class*="_momentInfo_"]');
     if (info) info.style.display = 'none';
 
-    // Only add picker on splash screen
     if (document.getElementById('pips-archive')) return;
     const play = [...root.querySelectorAll('button')].find(b => b.textContent.trim() === 'Play');
     if (!play) return;
@@ -67,7 +63,6 @@
     label.appendChild(input);
     div.appendChild(label);
 
-    // Insert before difficulty tabs or Play button
     const tabs = [...root.querySelectorAll('*')].find(el =>
       el.children.length >= 3 && ['Easy','Medium','Hard'].every(t => [...el.children].some(c => c.textContent.trim() === t))
     );
