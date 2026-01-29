@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYT Pips Archive
 // @namespace    https://github.com/swartout/pips
-// @version      4.1
+// @version      4.2
 // @description  Play any previous day's NYT Pips puzzle by selecting a date
 // @match        https://www.nytimes.com/games/pips*
 // @run-at       document-start
@@ -96,16 +96,14 @@
       }).observe(document.documentElement, { childList: true, subtree: true });
       return;
     }
-    const wrapper = document.getElementById('js-hook-game-wrapper');
-    const observe = wrapper || root.parentElement;
     tryInsertPicker();
-    const ed = document.getElementById('portal-editorial-content');
-    if (ed) ed.style.display = 'none';
-    new MutationObserver(() => {
-      tryInsertPicker();
-      const ed = document.getElementById('portal-editorial-content');
-      if (ed) ed.style.display = 'none';
-    }).observe(observe, { childList: true, subtree: true });
+    function hideEditorial() {
+      const el = root.querySelector('p[class*="_momentInfo_"]');
+      if (el) el.style.display = 'none';
+    }
+    hideEditorial();
+    new MutationObserver(() => { tryInsertPicker(); hideEditorial(); })
+      .observe(root, { childList: true, subtree: true });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
