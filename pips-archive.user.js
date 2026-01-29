@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYT Pips Archive
 // @namespace    https://github.com/swartout/pips
-// @version      6.1
+// @version      6.2
 // @description  Play any previous day's NYT Pips puzzle
 // @match        https://www.nytimes.com/games/pips*
 // @run-at       document-start
@@ -38,10 +38,9 @@
     if (info) info.style.display = 'none';
 
     if (document.getElementById('pips-archive')) return;
-    const tabs = [...root.querySelectorAll('*')].find(el =>
-      el.children.length >= 3 && ['Easy','Medium','Hard'].every(t => [...el.children].some(c => c.textContent.includes(t)))
-    );
-    if (!tabs) return;
+    const btn = root.querySelector('[data-testid="EASY-toggle-button"]');
+    if (!btn) return;
+    const tabs = btn.parentNode;
 
     const current = localStorage.getItem(KEY) || today();
 
