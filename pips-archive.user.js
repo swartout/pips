@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYT Pips Archive
 // @namespace    https://github.com/swartout/pips
-// @version      6.0
+// @version      6.1
 // @description  Play any previous day's NYT Pips puzzle
 // @match        https://www.nytimes.com/games/pips*
 // @run-at       document-start
@@ -38,8 +38,10 @@
     if (info) info.style.display = 'none';
 
     if (document.getElementById('pips-archive')) return;
-    const play = [...root.querySelectorAll('button')].find(b => b.textContent.trim() === 'Play');
-    if (!play) return;
+    const tabs = [...root.querySelectorAll('*')].find(el =>
+      el.children.length >= 3 && ['Easy','Medium','Hard'].every(t => [...el.children].some(c => c.textContent.includes(t)))
+    );
+    if (!tabs) return;
 
     const current = localStorage.getItem(KEY) || today();
 
@@ -63,10 +65,7 @@
     label.appendChild(input);
     div.appendChild(label);
 
-    const tabs = [...root.querySelectorAll('*')].find(el =>
-      el.children.length >= 3 && ['Easy','Medium','Hard'].every(t => [...el.children].some(c => c.textContent.trim() === t))
-    );
-    (tabs || play).parentNode.insertBefore(div, tabs || play);
+    tabs.parentNode.insertBefore(div, tabs);
   }
 
   new MutationObserver(update).observe(document.documentElement, { childList: true, subtree: true });
